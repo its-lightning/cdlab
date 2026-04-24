@@ -1,0 +1,114 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <iomanip>
+using namespace std;
+
+struct Production {
+    string lhs;
+    string rhs;
+};
+
+vector<Production> productions;
+
+string tryReduce(string &stk) {
+    int bestLen = -1;
+    int bestPos = -1;
+    int bestProd = -1;
+
+    for (int i = 0; i < (int)productions.size(); i++) {
+        string rhs = productions[i].rhs;
+        if ((int)stk.size() >= (int)rhs.size()) {
+            int pos = (int)stk.size() - (int)rhs.size();
+            if (stk.substr(pos) == rhs) {
+                if ((int)rhs.size() > bestLen) {
+                    bestLen = (int)rhs.size();
+                    bestPos = pos;
+                    bestProd = i;
+                }
+            }
+        }
+    }
+
+    if (bestProd != -1) {
+        string rule = productions[bestProd].lhs + "->" + productions[bestProd].rhs;
+        stk = stk.substr(0, bestPos) + productions[bestProd].lhs;
+        return rule;
+    }
+    return "";
+}
+
+int main() {
+    int n;
+    cout << "Enter number of productions: ";
+    cin >> n;
+    cin.ignore();
+
+    cout << "Enter productions (e.g. S->aSb):" << endl;
+    for (int i = 0; i < n; i++) {
+        string prod;
+        cin >> prod;
+        size_t arrow = prod.find("->");
+        if (arrow == string::npos) {
+            cout << "Invalid production. Use LHS->RHS" << endl;
+            return 1;
+        }
+        Production p;
+        p.lhs = prod.substr(0, arrow);
+        p.rhs = prod.substr(arrow + 2);
+        productions.push_back(p);
+    }
+
+    string input;
+    cout << "Enter input string: ";
+    cin >> input;
+    input += "$";
+
+    string stk = "$";
+    int pos = 0;
+
+    cout << "\n";
+    cout << left << setw(20) << "Stack"
+         << setw(20) << "Input"
+         << "Action" << endl;
+    cout << string(60, '-') << endl;
+
+    while (true) {
+        string remaining = input.substr(pos);
+
+        // Check accept
+        if (stk == "$S" && remaining == "$") {
+            cout << left << setw(20) << stk
+                 << setw(20) << remaining
+                 << "Accept" << endl;
+            break;
+        }
+
+        // Try reduce
+        string rule = tryReduce(stk);
+        if (!rule.empty()) {
+            remaining = input.substr(pos);
+            cout << left << setw(20) << stk
+                 << setw(20) << remaining
+                 << "Reduce " << rule << endl;
+            continue;
+        }
+
+        // No reduce possible, try shift
+        if (pos >= (int)input.size() - 1) {
+            cout << left << setw(20) << stk
+                 << setw(20) << remaining
+                 << "Reject" << endl;
+            break;
+        }
+
+        char next = input[pos++];
+        stk += next;
+        remaining = input.substr(pos);
+        cout << left << setw(20) << stk
+             << setw(20) << remaining
+             << "Shift " << next << endl;
+    }
+
+    return 0;
+}

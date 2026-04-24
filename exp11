@@ -1,0 +1,109 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <iomanip>
+using namespace std;
+
+struct Statement {
+    string op;
+    string arg1;
+    string arg2;
+    string result;
+};
+
+// Parse a statement like t=a+b or t=a (unary/assignment)
+Statement parse(const string &line) {
+    Statement s;
+    // Remove spaces
+    string expr = "";
+    for (char c : line) if (c != ' ') expr += c;
+
+    // Find '='
+    size_t eq = expr.find('=');
+    s.result = expr.substr(0, eq);
+    string rhs = expr.substr(eq + 1);
+
+    // Find operator in rhs (+, -, *, /)
+    // Search from position 1 to skip unary minus at start
+    string ops = "+-*/";
+    int opPos = -1;
+    for (int i = 1; i < (int)rhs.size(); i++) {
+        for (char op : ops) {
+            if (rhs[i] == op) {
+                opPos = i;
+                break;
+            }
+        }
+        if (opPos != -1) break;
+    }
+
+    if (opPos == -1) {
+        // Assignment or unary
+        s.op = "=";
+        s.arg1 = rhs;
+        s.arg2 = "-";
+    } else {
+        s.op = string(1, rhs[opPos]);
+        s.arg1 = rhs.substr(0, opPos);
+        s.arg2 = rhs.substr(opPos + 1);
+    }
+
+    return s;
+}
+
+int main() {
+    int n;
+    cout << "Enter number of statements: ";
+    cin >> n;
+    cin.ignore();
+
+    cout << "Enter the statements:" << endl;
+    vector<Statement> stmts;
+    for (int i = 0; i < n; i++) {
+        string line;
+        getline(cin, line);
+        stmts.push_back(parse(line));
+    }
+
+    int w1 = 8, w2 = 8, w3 = 8, w4 = 8;
+
+    // Quadruple
+    cout << "\nQuadruple Representation\n";
+    cout << left << setw(w1) << "Op"
+         << setw(w2) << "Arg1"
+         << setw(w3) << "Arg2"
+         << setw(w4) << "Result" << "\n";
+    cout << string(w1+w2+w3+w4, '-') << "\n";
+    for (auto &s : stmts) {
+        cout << left << setw(w1) << s.op
+             << setw(w2) << s.arg1
+             << setw(w3) << s.arg2
+             << setw(w4) << s.result << "\n";
+    }
+
+    // Triple
+    cout << "\nTriple Representation\n";
+    cout << left << setw(8)  << "Index"
+         << setw(w1) << "Op"
+         << setw(w2) << "Arg1"
+         << setw(w3) << "Arg2" << "\n";
+    cout << string(8+w1+w2+w3, '-') << "\n";
+    for (int i = 0; i < (int)stmts.size(); i++) {
+        cout << left << setw(8)  << i
+             << setw(w1) << stmts[i].op
+             << setw(w2) << stmts[i].arg1
+             << setw(w3) << stmts[i].arg2 << "\n";
+    }
+
+    // Indirect Triple
+    cout << "\nIndirect Triple Representation\n";
+    cout << left << setw(10) << "Pointer"
+         << setw(8)  << "Index" << "\n";
+    cout << string(18, '-') << "\n";
+    for (int i = 0; i < (int)stmts.size(); i++) {
+        cout << left << setw(10) << i
+             << setw(8)  << i << "\n";
+    }
+
+    return 0;
+}

@@ -1,0 +1,180 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <map>
+#include <set>
+#include <algorithm>
+using namespace std;
+
+struct Production {
+    string lhs;
+    string rhs;
+};
+
+struct Item {
+    int prodIndex;  // which production
+    int dot;        // dot position in rhs
+    bool operator<(const Item &o) const {
+        if (prodIndex != o.prodIndex) return prodIndex < o.prodIndex;
+        return dot < o.dot;
+    }
+    bool operator==(const Item &o) const {
+        return prodIndex == o.prodIndex && dot == o.dot;
+    }
+};
+
+vector<Production> prods;
+
+// Get symbol after dot, returns "" if dot is at end
+string symbolAfterDot(const Item &item) {
+    const string &rhs = prods[item.prodIndex].rhs;
+    if (item.dot >= (int)rhs.size()) return "";
+    // Handle multi-char symbols (uppercase = non-terminal, lowercase = terminal)
+    // We treat each character as one symbol
+    return string(1, rhs[item.dot]);
+}
+
+// Compute closure of a set of items
+set<Item> closure(set<Item> items) {
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        set<Item> toAdd;
+        for (const Item &it : items) {
+            string sym = symbolAfterDot(it);
+            if (sym.empty()) continue;
+            // If sym is a non-terminal, add all productions for it with dot at start
+            for (int i = 0; i < (int)prods.size(); i++) {
+                if (prods[i].lhs == sym) {
+                    Item newItem = {i, 0};
+                    if (items.find(newItem) == items.end()) {
+                        toAdd.insert(newItem);
+                        changed = true;
+                    }
+                }
+            }
+        }
+        items.insert(toAdd.begin(), toAdd.end());
+    }
+    return items;
+}
+
+// Compute goto(I, X)
+set<Item> gotoSet(const set<Item> &items, const string &sym) {
+    set<Item> moved;
+    for (const Item &it : items) {
+        if (symbolAfterDot(it) == sym) {
+            moved.insert({it.prodIndex, it.dot + 1});
+        }
+    }
+    if (moved.empty()) return {};
+    return closure(moved);
+}
+
+// Print an item like A -> alpha . beta
+void printItem(const Item &it) {
+    const Production &p = prods[it.prodIndex];
+    cout << "  " << p.lhs << " -> ";
+    for (int i = 0; i < (int)p.rhs.size(); i++) {
+        if (i == it.dot) cout << ".";
+        cout << p.rhs[i];
+    }
+    if (it.dot == (int)p.rhs.size()) cout << ".";
+    cout << "\n";
+}
+
+int main() {
+    int n;
+    cout << "Enter number of productions: ";
+    cin >> n;
+    cin.ignore();
+
+    cout << "Enter productions (e.g. S->AA):" << endl;
+    vector<Production> userProds;
+    for (int i = 0; i < n; i++) {
+        string line;
+        getline(cin, line);
+        // Remove spaces
+        string cleaned = "";
+        for (char c : line) if (c != ' ') cleaned += c;
+        size_t arrow = cleaned.find("->");
+        if (arrow == string::npos) { i--; continue; }
+        Production p;
+        p.lhs = cleaned.substr(0, arrow);
+        p.rhs = cleaned.substr(arrow + 2);
+        userProds.push_back(p);
+    }
+
+    // Step 1: Print numbered productions
+    cout << "\n1. Numbered Productions:\n";
+    for (int i = 0; i < (int)userProds.size(); i++) {
+        cout << "   " << (i+1) << ". " << userProds[i].lhs << " -> " << userProds[i].rhs << "\n";
+    }
+
+    // Step 2: Augmented grammar
+    string startSym = userProds[0].lhs;
+    string augStart = startSym + "'";
+    Production augProd = {augStart, startSym};
+
+    prods.push_back(augProd);
+    for (auto &p : userProds) prods.push_back(p);
+
+    cout << "\n2. Augmented Grammar:\n";
+    for (auto &p : prods) {
+        cout << "   " << p.lhs << " -> " << p.rhs << "\n";
+    }
+
+    // Collect all grammar symbols
+    set<string> symbols;
+    for (auto &p : prods) {
+        for (char c : p.rhs) symbols.insert(string(1, c));
+        symbols.insert(p.lhs);
+    }
+
+    // Step 3: Build canonical LR(0) collection
+    cout << "\n3. LR(0) Items:\n";
+
+    vector<set<Item>> C;
+    map<pair<int,string>, int> gotoTable; // (state, symbol) -> state index
+
+    // Initial item: augmented production with dot at start
+    Item startItem = {0, 0};
+    set<Item> I0 = closure({startItem});
+    C.push_back(I0);
+
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (int i = 0; i < (int)C.size(); i++) {
+            for (const string &sym : symbols) {
+                set<Item> gt = gotoSet(C[i], sym);
+                if (gt.empty()) continue;
+                // Check if already in C
+                int found = -1;
+                for (int j = 0; j < (int)C.size(); j++) {
+                    if (C[j] == gt) { found = j; break; }
+                }
+                if (found == -1) {
+                    C.push_back(gt);
+                    found = C.size() - 1;
+                    changed = true;
+                }
+                gotoTable[{i, sym}] = found;
+            }
+        }
+    }
+
+    // Print states
+    for (int i = 0; i < (int)C.size(); i++) {
+        cout << "\nI" << i << ":\n";
+        for (const Item &it : C[i]) printItem(it);
+    }
+
+    // Print goto transitions
+    cout << "\n4. Goto Transitions:\n";
+    for (auto &entry : gotoTable) {
+        cout << "   Goto(I" << entry.first.first << ", " << entry.first.second << ") = I" << entry.second << "\n";
+    }
+
+    return 0;
+}
