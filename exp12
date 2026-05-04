@@ -1,0 +1,81 @@
+#include <iostream>
+#include <vector>
+#include <string>
+using namespace std;
+
+struct Statement {
+    string op;
+    string arg1;
+    string arg2;
+    string result;
+};
+
+Statement parse(const string &line) {
+    Statement s;
+    string expr = "";
+    for (char c : line) if (c != ' ') expr += c;
+
+    size_t eq = expr.find('=');
+    s.result = expr.substr(0, eq);
+    string rhs = expr.substr(eq + 1);
+
+    string ops = "+-*/";
+    int opPos = -1;
+    for (int i = 1; i < (int)rhs.size(); i++) {
+        for (char op : ops) {
+            if (rhs[i] == op) { opPos = i; break; }
+        }
+        if (opPos != -1) break;
+    }
+
+    if (opPos == -1) {
+        s.op = "="; 
+        s.arg1 = rhs;
+        s.arg2 = "";
+    } else {
+        s.op = string(1, rhs[opPos]);
+        s.arg1 = rhs.substr(0, opPos);
+        s.arg2 = rhs.substr(opPos + 1);
+    }
+    return s;
+}
+
+void generate(const Statement &s) {
+    if (s.op == "=") {
+        cout << "LOAD " << s.arg1 << "\n";
+        cout << "STORE " << s.result << "\n";
+    } else {
+        string instr;
+        if      (s.op == "+") instr = "ADD";
+        else if (s.op == "-") instr = "SUB";
+        else if (s.op == "*") instr = "MUL";
+        else if (s.op == "/") instr = "DIV";
+
+        cout << "LOAD " << s.arg1 << "\n";
+        cout << instr << " " << s.arg2 << "\n";
+        cout << "STORE " << s.result << "\n";
+    }
+}
+
+int main() {
+    int n;
+    cout << "Enter number of three address statements: ";
+    cin >> n;
+    cin.ignore();
+
+    cout << "Enter the statements:" << endl;
+    vector<Statement> stmts;
+    for (int i = 0; i < n; i++) {
+        string line;
+        getline(cin, line);
+        stmts.push_back(parse(line));
+    }
+
+    cout << "\nGenerated Target Code:\n" << endl;
+    for (int i = 0; i < (int)stmts.size(); i++) {
+        generate(stmts[i]);
+        if (i < (int)stmts.size() - 1) cout << "\n";
+    }
+
+    return 0;
+}
